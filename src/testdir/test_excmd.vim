@@ -672,12 +672,8 @@ func Test_sandbox()
 endfunc
 
 func Test_command_not_implemented_E319()
-  try
-    mz (define l '("Hi World."))
-  catch
-    " initialize mzscheme just in case it needs dynamic loading.
-  endtry
   if !has('mzscheme')
+    CheckFeature mzscheme
     call assert_fails('mzscheme', 'E319:')
   endif
 endfunc
