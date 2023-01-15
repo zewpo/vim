@@ -13,7 +13,11 @@ func MzRequire()
   else
     " newer versions:
     mz (require (prefix-in vim- 'vimext))
-    mz (require r5rs)
+    try
+      mz (require r5rs)
+    catch
+      throw "Skipped: is r5rs mis-configured?"
+    endtry
   endif
 endfunc
 
