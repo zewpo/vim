@@ -12,6 +12,7 @@ func MzRequire()
     mz (require (prefix vim- vimext))
   else
     " newer versions:
+    mz #lang racket
     mz (require (prefix-in vim- 'vimext))
     mz (require r5rs)
   endif
