@@ -204,17 +204,6 @@ ex_class(exarg_T *eap)
 {
     int is_class = eap->cmdidx == CMD_class;  // FALSE for :interface
 
-    if (!current_script_is_vim9()
-		|| (cmdmod.cmod_flags & CMOD_LEGACY)
-		|| !getline_equal(eap->getline, eap->cookie, getsourceline))
-    {
-	if (is_class)
-	    emsg(_(e_class_can_only_be_defined_in_vim9_script));
-	else
-	    emsg(_(e_interface_can_only_be_defined_in_vim9_script));
-	return;
-    }
-
     char_u *arg = eap->arg;
     int is_abstract = eap->cmdidx == CMD_abstract;
     if (is_abstract)
@@ -225,6 +214,18 @@ ex_class(exarg_T *eap)
 	    return;
 	}
 	arg = skipwhite(arg + 5);
+	is_class = TRUE;
+    }
+
+    if (!current_script_is_vim9()
+		|| (cmdmod.cmod_flags & CMOD_LEGACY)
+		|| !getline_equal(eap->getline, eap->cookie, getsourceline))
+    {
+	if (is_class)
+	    emsg(_(e_class_can_only_be_defined_in_vim9_script));
+	else
+	    emsg(_(e_interface_can_only_be_defined_in_vim9_script));
+	return;
     }
 
     if (!ASCII_ISUPPER(*arg))
@@ -493,6 +494,12 @@ early_ret:
 	    {
 		char_u *name = uf->uf_name;
 		int is_new = STRNCMP(name, "new", 3) == 0;
+		if (is_new && is_abstract)
+		{
+		    emsg(_(e_cannot_define_new_function_in_abstract_class));
+		    success = FALSE;
+		    break;
+		}
 		garray_T *fgap = has_static || is_new
 					       ? &classfunctions : &objmethods;
 		// Check the name isn't used already.
@@ -699,6 +706,46 @@ early_ret:
 	}
     }
 
+    if (success)
+    {
+	// Check no function argument name is used as an object/class member.
+	for (int loop = 1; loop <= 2 && success; ++loop)
+	{
+	    garray_T *gap = loop == 1 ? &classfunctions : &objmethods;
+
+	    for (int fi = 0; fi < gap->ga_len && success; ++fi)
+	    {
+		ufunc_T *uf = ((ufunc_T **)gap->ga_data)[fi];
+
+		for (int i = 0; i < uf->uf_args.ga_len && success; ++i)
+		{
+		    char_u *aname = ((char_u **)uf->uf_args.ga_data)[i];
+		    for (int il = 1; il <= 2 && success; ++il)
+		    {
+			// For a "new()" function "this.member" arguments are
+			// OK.  TODO: check for the "this." prefix.
+			if (STRNCMP(uf->uf_name, "new", 3) == 0 && il == 2)
+			    continue;
+			garray_T *mgap = il == 1 ? &classmembers : &objmembers;
+			for (int mi = 0; mi < mgap->ga_len; ++mi)
+			{
+			    char_u *mname = ((ocmember_T *)mgap->ga_data
+							       + mi)->ocm_name;
+			    if (STRCMP(aname, mname) == 0)
+			    {
+				success = FALSE;
+				semsg(_(e_argument_already_declared_in_class_str),
+									aname);
+				break;
+			    }
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+
     class_T *cl = NULL;
     if (success)
     {
@@ -786,7 +833,7 @@ early_ret:
 		have_new = TRUE;
 		break;
 	    }
-	if (is_class && !have_new)
+	if (is_class && !is_abstract && !have_new)
 	{
 	    // No new() method was defined, add the default constructor.
 	    garray_T fga;
