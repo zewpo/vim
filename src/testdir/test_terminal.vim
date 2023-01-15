@@ -4,7 +4,6 @@
 
 source check.vim
 CheckFeature terminal
-throw "Skipped: while experimenting with GitHub Actions."
 
 source shared.vim
 source screendump.vim

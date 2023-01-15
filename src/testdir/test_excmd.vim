@@ -673,7 +673,6 @@ endfunc
 
 func Test_command_not_implemented_E319()
   if !has('mzscheme')
-    CheckFeature mzscheme
     call assert_fails('mzscheme', 'E319:')
   endif
 endfunc
