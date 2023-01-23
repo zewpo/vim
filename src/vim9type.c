@@ -86,7 +86,8 @@ copy_type_deep_rec(type_T *type, garray_T *type_gap, garray_T *seen_types)
     ((type_T **)seen_types->ga_data)[seen_types->ga_len * 2 + 1] = copy;
     ++seen_types->ga_len;
 
-    if (copy->tt_member != NULL)
+    if (copy->tt_member != NULL
+	    && copy->tt_type != VAR_OBJECT && copy->tt_type != VAR_CLASS)
 	copy->tt_member = copy_type_deep_rec(copy->tt_member,
 							 type_gap, seen_types);
 
@@ -538,7 +539,8 @@ typval2type_int(typval_T *tv, int copyID, garray_T *type_gap, int flags)
 		type_T *decl_type;  // unused
 
 		internal_func_get_argcount(idx, &argcount, &min_argcount);
-		member_type = internal_func_ret_type(idx, 0, NULL, &decl_type);
+		member_type = internal_func_ret_type(idx, 0, NULL, &decl_type,
+								     type_gap);
 	    }
 	    else
 		ufunc = find_func(name, FALSE);
@@ -626,12 +628,17 @@ typval2type(typval_T *tv, int copyID, garray_T *type_gap, int flags)
 {
     type_T *type = typval2type_int(tv, copyID, type_gap, flags);
 
-    if (type != NULL && type != &t_bool
-	    && (tv->v_type == VAR_NUMBER
+    if (type != NULL)
+    {
+	if (type != &t_bool && (tv->v_type == VAR_NUMBER
 		    && (tv->vval.v_number == 0 || tv->vval.v_number == 1)))
-	// Number 0 and 1 and expression with "&&" or "||" can also be used for
-	// bool.
-	type = &t_number_bool;
+	    // Number 0 and 1 and expression with "&&" or "||" can also be used
+	    // for bool.
+	    type = &t_number_bool;
+	else if (type != &t_float && tv->v_type == VAR_NUMBER)
+	    // A number can also be used for float.
+	    type = &t_number_float;
+    }
     return type;
 }
 
@@ -819,9 +826,10 @@ check_type_maybe(
 		// Using number 0 or 1 for bool is OK.
 		return OK;
 	    if (expected->tt_type == VAR_FLOAT
-		    && (expected->tt_flags & TTFLAG_NUMBER_OK)
-					&& actual->tt_type == VAR_NUMBER)
-		// Using number where float is expected is OK here.
+		    && actual->tt_type == VAR_NUMBER
+		    && ((expected->tt_flags & TTFLAG_NUMBER_OK)
+			     || (actual->tt_flags & TTFLAG_FLOAT_OK)))
+		// Using a number where a float is expected is OK here.
 		return OK;
 	    if (give_msg)
 		type_mismatch_where(expected, actual, where);
@@ -876,6 +884,11 @@ check_type_maybe(
 	}
 	else if (expected->tt_type == VAR_OBJECT)
 	{
+	    if (actual->tt_type == VAR_ANY)
+		return MAYBE;	// use runtime type check
+	    if (actual->tt_type != VAR_OBJECT)
+		return FAIL;	// don't use tt_member
+
 	    // check the class, base class or an implemented interface matches
 	    class_T *cl;
 	    for (cl = (class_T *)actual->tt_member; cl != NULL;

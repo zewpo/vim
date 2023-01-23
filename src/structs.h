@@ -1462,10 +1462,11 @@ typedef struct {
 
 #define TTFLAG_VARARGS	    0x01    // func args ends with "..."
 #define TTFLAG_BOOL_OK	    0x02    // can be converted to bool
-#define TTFLAG_NUMBER_OK    0x04    // tt_type is VAR_FLOAT, VAR_NUMBER is OK
-#define TTFLAG_STATIC	    0x08    // one of the static types, e.g. t_any
-#define TTFLAG_CONST	    0x10    // cannot be changed
-#define TTFLAG_SUPER	    0x20    // object from "super".
+#define TTFLAG_FLOAT_OK	    0x04    // number can be used/converted to float
+#define TTFLAG_NUMBER_OK    0x08    // number can be used for a float
+#define TTFLAG_STATIC	    0x10    // one of the static types, e.g. t_any
+#define TTFLAG_CONST	    0x20    // cannot be changed
+#define TTFLAG_SUPER	    0x40    // object from "super".
 
 typedef enum {
     ACCESS_PRIVATE,	// read/write only inside th class
@@ -1482,6 +1483,14 @@ typedef struct {
     type_T	*ocm_type;
     char_u	*ocm_init;   // allocated
 } ocmember_T;
+
+// used for the lookup table of a class member index
+typedef struct itf2class_S itf2class_T;
+struct itf2class_S {
+    itf2class_T	*i2c_next;
+    class_T	*i2c_class;
+    // array with ints follows
+};
 
 #define CLASS_INTERFACE 1
 
@@ -1501,6 +1510,7 @@ struct class_S
     int		class_interface_count;
     char_u	**class_interfaces;	// allocated array of names
     class_T	**class_interfaces_cl;	// interfaces (counts as reference)
+    itf2class_T	*class_itf2class;	// member index lookup tables
 
     // class members: "static varname"
     int		class_class_member_count;
