@@ -356,7 +356,7 @@ spell_load_file(
     int		c = 0;
     int		res;
     int		did_estack_push = FALSE;
-    ESTACK_CHECK_DECLARATION
+    ESTACK_CHECK_DECLARATION;
 
     fd = mch_fopen((char *)fname, "r");
     if (fd == NULL)
@@ -397,7 +397,7 @@ spell_load_file(
 
     // Set sourcing_name, so that error messages mention the file name.
     estack_push(ETYPE_SPELL, fname, 0);
-    ESTACK_CHECK_SETUP
+    ESTACK_CHECK_SETUP;
     did_estack_push = TRUE;
 
     /*
@@ -588,7 +588,7 @@ endOK:
 	fclose(fd);
     if (did_estack_push)
     {
-	ESTACK_CHECK_NOW
+	ESTACK_CHECK_NOW;
 	estack_pop();
     }
 
@@ -2890,7 +2890,7 @@ spell_read_aff(spellinfo_T *spin, char_u *fname)
 		     || is_aff_rule(items, itemcnt, "REPSAL", 2))
 	    {
 		// Ignore REP/REPSAL count
-		if (!isdigit(*items[1]))
+		if (!SAFE_isdigit(*items[1]))
 		    smsg(_("Expected REP(SAL) count in %s line %d"),
 								 fname, lnum);
 	    }
@@ -2925,7 +2925,7 @@ spell_read_aff(spellinfo_T *spin, char_u *fname)
 		{
 		    // First line contains the count.
 		    found_map = TRUE;
-		    if (!isdigit(*items[1]))
+		    if (!SAFE_isdigit(*items[1]))
 			smsg(_("Expected MAP count in %s line %d"),
 								 fname, lnum);
 		}
